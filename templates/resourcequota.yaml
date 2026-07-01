@@ -1,0 +1,14 @@
+{{- if .Values.resourceQuotas.enabled }}
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ include "paperless-stack.fullname" . }}-quota
+  namespace: {{ .Release.Namespace }}
+spec:
+  hard:
+    requests.cpu: {{ .Values.resourceQuotas.cpu }}
+    requests.memory: {{ .Values.resourceQuotas.memory }}
+    limits.cpu: {{ .Values.resourceQuotas.cpu }}
+    limits.memory: {{ .Values.resourceQuotas.memory }}
+    pods: {{ .Values.resourceQuotas.pods }}
+{{- end }}

@@ -1,0 +1,52 @@
+{{- if .Values.gotenberg.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gotenberg
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: conversion
+spec:
+  type: {{ .Values.services.gotenberg.type }}
+  ports:
+    - port: {{ .Values.services.gotenberg.port }}
+      targetPort: {{ .Values.services.gotenberg.targetPort }}
+      protocol: TCP
+      name: gotenberg
+  selector:
+    {{- include "paperless-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: conversion
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gotenberg
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: conversion
+spec:
+  replicas: {{ .Values.gotenberg.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "paperless-stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: conversion
+  template:
+    metadata:
+      labels:
+        {{- include "paperless-stack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: conversion
+    spec:
+      containers:
+        - name: gotenberg
+          image: "{{ .Values.gotenberg.image.repository }}:{{ .Values.gotenberg.image.tag }}"
+          imagePullPolicy: {{ .Values.gotenberg.image.pullPolicy }}
+          command: {{- toYaml .Values.gotenberg.command | nindent 12 }}
+          ports:
+            - containerPort: {{ .Values.services.gotenberg.targetPort }}
+              name: gotenberg
+          resources:
+            {{- toYaml .Values.gotenberg.resources | nindent 12 }}
+{{- end }}

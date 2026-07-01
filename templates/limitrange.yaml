@@ -1,0 +1,16 @@
+{{- if .Values.limitRanges.enabled }}
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ include "paperless-stack.fullname" . }}-limits
+  namespace: {{ .Release.Namespace }}
+spec:
+  limits:
+    - default:
+        cpu: {{ .Values.limitRanges.defaultCpu }}
+        memory: {{ .Values.limitRanges.defaultMemory }}
+      defaultRequest:
+        cpu: {{ .Values.limitRanges.defaultRequestCpu }}
+        memory: {{ .Values.limitRanges.defaultRequestMemory }}
+      type: Container
+{{- end }}

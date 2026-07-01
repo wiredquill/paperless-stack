@@ -1,0 +1,147 @@
+{{- if .Values.paperless.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paperless
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: application
+spec:
+  type: {{ .Values.services.paperless.type }}
+  ports:
+    - port: {{ .Values.services.paperless.port }}
+      targetPort: {{ .Values.services.paperless.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "paperless-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: application
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: application
+spec:
+  replicas: {{ .Values.paperless.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "paperless-stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: application
+  template:
+    metadata:
+      labels:
+        {{- include "paperless-stack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: application
+    spec:
+      containers:
+        - name: paperless
+          image: "{{ .Values.paperless.image.repository }}:{{ .Values.paperless.image.tag }}"
+          imagePullPolicy: {{ .Values.paperless.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.paperless.targetPort }}
+              name: http
+          env:
+            {{- range $key, $value := .Values.paperless.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.paperless.resources | nindent 12 }}
+          volumeMounts:
+            - name: paperless-data
+              mountPath: {{ .Values.paperless.data.mountPath }}
+            - name: paperless-media
+              mountPath: {{ .Values.paperless.media.mountPath }}
+            - name: paperless-export
+              mountPath: {{ .Values.paperless.export.mountPath }}
+            - name: paperless-consume
+              mountPath: {{ .Values.paperless.consume.mountPath }}
+      volumes:
+        - name: paperless-data
+          persistentVolumeClaim:
+            claimName: paperless-data
+        - name: paperless-media
+          persistentVolumeClaim:
+            claimName: paperless-media
+        - name: paperless-export
+          persistentVolumeClaim:
+            claimName: paperless-export
+        - name: paperless-consume
+          persistentVolumeClaim:
+            claimName: paperless-consume
+---
+# Paperless-ngx PVCs
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paperless-data
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: application
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.paperless.data.storageClass }}
+  storageClassName: {{ .Values.paperless.data.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.paperless.data.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paperless-media
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: application
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.paperless.media.storageClass }}
+  storageClassName: {{ .Values.paperless.media.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.paperless.media.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paperless-export
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: application
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.paperless.export.storageClass }}
+  storageClassName: {{ .Values.paperless.export.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.paperless.export.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paperless-consume
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: application
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.paperless.consume.storageClass }}
+  storageClassName: {{ .Values.paperless.consume.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.paperless.consume.size }}
+{{- end }}

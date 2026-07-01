@@ -1,0 +1,80 @@
+{{- if .Values.paperlessAi.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paperless-ai
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai
+spec:
+  type: {{ .Values.services.paperlessAi.type }}
+  ports:
+    - port: {{ .Values.services.paperlessAi.port }}
+      targetPort: {{ .Values.services.paperlessAi.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "paperless-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: ai
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless-ai
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai
+spec:
+  replicas: {{ .Values.paperlessAi.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "paperless-stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ai
+  template:
+    metadata:
+      labels:
+        {{- include "paperless-stack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ai
+    spec:
+      containers:
+        - name: paperless-ai
+          image: "{{ .Values.paperlessAi.image.repository }}:{{ .Values.paperlessAi.image.tag }}"
+          imagePullPolicy: {{ .Values.paperlessAi.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.paperlessAi.targetPort }}
+              name: http
+          env:
+            {{- range $key, $value := .Values.paperlessAi.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.paperlessAi.resources | nindent 12 }}
+          volumeMounts:
+            - name: paperless-ai-data
+              mountPath: {{ .Values.paperlessAi.data.mountPath }}
+      volumes:
+        - name: paperless-ai-data
+          persistentVolumeClaim:
+            claimName: paperless-ai-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paperless-ai-data
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.paperlessAi.data.storageClass }}
+  storageClassName: {{ .Values.paperlessAi.data.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.paperlessAi.data.size }}
+{{- end }}

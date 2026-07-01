@@ -1,0 +1,51 @@
+{{- if .Values.tika.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tika
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: extraction
+spec:
+  type: {{ .Values.services.tika.type }}
+  ports:
+    - port: {{ .Values.services.tika.port }}
+      targetPort: {{ .Values.services.tika.targetPort }}
+      protocol: TCP
+      name: tika
+  selector:
+    {{- include "paperless-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: extraction
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tika
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: extraction
+spec:
+  replicas: {{ .Values.tika.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "paperless-stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: extraction
+  template:
+    metadata:
+      labels:
+        {{- include "paperless-stack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: extraction
+    spec:
+      containers:
+        - name: tika
+          image: "{{ .Values.tika.image.repository }}:{{ .Values.tika.image.tag }}"
+          imagePullPolicy: {{ .Values.tika.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.tika.targetPort }}
+              name: tika
+          resources:
+            {{- toYaml .Values.tika.resources | nindent 12 }}
+{{- end }}

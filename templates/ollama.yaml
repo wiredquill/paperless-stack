@@ -1,0 +1,89 @@
+{{- if .Values.ollama.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: inference
+spec:
+  type: ClusterIP
+  ports:
+    - port: 11434
+      targetPort: 11434
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "paperless-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: inference
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ollama
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: inference
+spec:
+  serviceName: ollama
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "paperless-stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: inference
+  template:
+    metadata:
+      labels:
+        {{- include "paperless-stack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: inference
+    spec:
+      nodeSelector:
+        {{- toYaml .Values.ollama.nodeSelector | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.ollama.tolerations | nindent 8 }}
+      containers:
+        - name: ollama
+          image: "{{ .Values.ollama.image.repository }}:{{ .Values.ollama.image.tag }}"
+          imagePullPolicy: {{ .Values.ollama.image.pullPolicy }}
+          ports:
+            - containerPort: 11434
+              name: http
+          resources:
+            {{- toYaml .Values.ollama.resources | nindent 12 }}
+          volumeMounts:
+            - name: ollama-data
+              mountPath: {{ .Values.ollama.volumes.ollamaData.mountPath }}
+            - name: ollama-models
+              mountPath: {{ .Values.ollama.volumes.ollamaModels.mountPath }}
+      volumes:
+        - name: ollama-data
+          persistentVolumeClaim:
+            claimName: ollama-data
+        - name: ollama-models
+          persistentVolumeClaim:
+            claimName: ollama-models
+  volumeClaimTemplates:
+    - metadata:
+        name: ollama-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.ollama.volumes.ollamaData.storageClass }}
+        storageClassName: {{ .Values.ollama.volumes.ollamaData.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.ollama.volumes.ollamaData.size }}
+    - metadata:
+        name: ollama-models
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.ollama.volumes.ollamaModels.storageClass }}
+        storageClassName: {{ .Values.ollama.volumes.ollamaModels.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.ollama.volumes.ollamaModels.size }}
+{{- end }}

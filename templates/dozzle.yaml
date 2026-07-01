@@ -1,0 +1,82 @@
+{{- if .Values.dozzle.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dozzle
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: logging
+spec:
+  type: {{ .Values.services.dozzle.type }}
+  ports:
+    - port: {{ .Values.services.dozzle.port }}
+      targetPort: {{ .Values.services.dozzle.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "paperless-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: logging
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dozzle
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: logging
+spec:
+  replicas: {{ .Values.dozzle.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "paperless-stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: logging
+  template:
+    metadata:
+      labels:
+        {{- include "paperless-stack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: logging
+    spec:
+      containers:
+        - name: dozzle
+          image: "{{ .Values.dozzle.image.repository }}:{{ .Values.dozzle.image.tag }}"
+          imagePullPolicy: {{ .Values.dozzle.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.dozzle.targetPort }}
+              name: http
+          resources:
+            {{- toYaml .Values.dozzle.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.dozzle.volume.dockerSocket.enabled }}
+            - name: docker-socket
+              mountPath: {{ .Values.dozzle.volume.dockerSocket.mountPath }}
+            {{- end }}
+            - name: dozzle-data
+              mountPath: /data
+      volumes:
+        {{- if .Values.dozzle.volume.dockerSocket.enabled }}
+        - name: docker-socket
+          hostPath:
+            path: {{ .Values.dozzle.volume.dockerSocket.hostPath }}
+            type: Socket
+        {{- end }}
+        - name: dozzle-data
+          persistentVolumeClaim:
+            claimName: dozzle-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dozzle-data
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: logging
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+{{- end }}

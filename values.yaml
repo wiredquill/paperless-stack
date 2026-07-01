@@ -1,0 +1,412 @@
+# ============================================================
+# Paperless Stack Helm Chart Values
+# ============================================================
+
+# Global settings
+global:
+  domain: paperless.wiredquill.com
+  ingressClass: nginx
+  namespace: paperless
+
+# ============================================================
+# Core Services
+# ============================================================
+
+## Paperless-ngx (main application)
+paperless:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/paperless-ngx/paperless-ngx
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+  env:
+    # Paperless configuration - see paperless-ngx docs for full list
+    PAPERLESS_DBHOST: postgres
+    PAPERLESS_DBPORT: 5432
+    PAPERLESS_DBNAME: paperless
+    PAPERLESS_DBUSER: paperless
+    PAPERLESS_DBPASS: change-me-strong-password
+    PAPERLESS_REDIS: redis://redis:6379
+    PAPERLESS_ADMIN_USER: admin
+    PAPERLESS_ADMIN_PASSWORD: change-me-admin-password
+    PAPERLESS_URL: https://paperless.wiredquill.com
+    # Optional: OCR settings
+    PAPERLESS_OCR_LANGUAGES: eng
+    PAPERLESS_OCR_SIDEcar_IMAGE: ghcr.io/paperless-ngx/paperless-ngx:latest
+    PAPERLESS_TASK_WORKERS: 2
+    PAPERLESS_CONSUMER_RECURSIVE: "true"
+    PAPERLESS_CONSUMER_SUBFOLDERS_AS_TAGS: "false"
+  # Persistent volumes
+  data:
+    enabled: true
+    storageClass: "longhorn"
+    size: 10Gi
+    mountPath: /usr/src/paperless/data
+  media:
+    enabled: true
+    storageClass: "longhorn"
+    size: 50Gi
+    mountPath: /usr/src/paperless/media
+  export:
+    enabled: true
+    storageClass: "longhorn"
+    size: 10Gi
+    mountPath: /usr/src/paperless/export
+  consume:
+    enabled: true
+    storageClass: "longhorn"
+    size: 10Gi
+    mountPath: /usr/src/paperless/consume
+
+## PostgreSQL Database
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "18"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: "2"
+      memory: 8Gi
+  env:
+    POSTGRES_DB: paperless
+    POSTGRES_USER: paperless
+    POSTGRES_PASSWORD: change-me-strong-password
+  data:
+    enabled: true
+    storageClass: "longhorn"
+    size: 20Gi
+    mountPath: /var/lib/postgresql/data
+  # Tune for paperless workload
+  primary:
+    initdb:
+      postgresql:
+        max_connections: 100
+
+## Redis
+redis:
+  enabled: true
+  image:
+    repository: docker.io/library/redis
+    tag: "8"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  data:
+    enabled: true
+    storageClass: "longhorn"
+    size: 5Gi
+    mountPath: /data
+  # Optional: password auth for Redis
+  auth:
+    enabled: false
+    password: ""
+
+## Gotenberg (document conversion)
+gotenberg:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker.io/gotenberg/gotenberg
+    tag: "8.25"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  command:
+    - "gotenberg"
+    - "--chromium-disable-javascript=true"
+    - "--chromium-allow-list=file:///tmp/.*"
+
+## Apache Tika (document text extraction)
+tika:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker.io/apache/tika
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+# ============================================================
+# Optional AI Services
+# ============================================================
+
+## Ollama (local LLM inference - requires GPU)
+ollama:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ollama/ollama
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 2
+      memory: 8Gi
+      "nvidia.com/gpu": 1
+    limits:
+      cpu: "8"
+      memory: 32Gi
+      "nvidia.com/gpu": 1
+  # GPU node requirements
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+  tolerations:
+    - key: "nvidia.com/gpu"
+      operator: "Exists"
+      effect: "NoSchedule"
+  volumes:
+    ollamaData:
+      enabled: true
+      storageClass: "longhorn"
+      size: 50Gi
+      mountPath: /root/.ollama
+    ollamaModels:
+      enabled: true
+      storageClass: "longhorn"
+      size: 100Gi
+      mountPath: /ollama-models
+
+## Open WebUI (LLM web interface)
+openWebui:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/open-webui/open-webui
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: "2"
+      memory: 8Gi
+  data:
+    enabled: true
+    storageClass: "longhorn"
+    size: 10Gi
+    mountPath: /app/backend/data
+  ollamaUrl: http://ollama:11434
+
+## Paperless-AI (metadata suggestions)
+paperlessAi:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: clusterzx/paperless-ai
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  data:
+    enabled: true
+    storageClass: "longhorn"
+    size: 10Gi
+    mountPath: /app/data
+  # Configuration
+  env:
+    # Paperless API token (get from Paperless Profile → API Tokens)
+    PAPERLESS_API_TOKEN: ""
+    # Paperless base URL
+    PAPERLESS_SERVER_URL: http://paperless:8000
+    # Ollama URL
+    OLLAMA_BASE_URL: http://ollama:11434
+    # Model to use (must match downloaded model in Ollama)
+    MODEL: llama3.2:3b
+
+## Paperless-GPT (vision OCR)
+paperlessGpt:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: icereed/paperless-gpt
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+  prompts:
+    enabled: true
+    storageClass: "longhorn"
+    size: 5Gi
+    mountPath: /app/prompts
+  env:
+    # Paperless API token
+    PAPERLESS_API_TOKEN: ""
+    # Paperless base URL
+    PAPERLESS_SERVER_URL: http://paperless:8000
+    # Ollama URL
+    OLLAMA_BASE_URL: http://ollama:11434
+    # Vision model (e.g., minicpm-v:8b)
+    MODEL: minicpm-v:8b
+
+# ============================================================
+# Optional: Dozzle (log viewer)
+# ============================================================
+dozzle:
+  enabled: false
+  replicaCount: 1
+  image:
+    repository: amir20/dozzle
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  # Dozzle needs access to Docker socket - use hostPath or alternative
+  # For Kubernetes, consider docker socket proxy or disable
+  volume:
+    dockerSocket:
+      enabled: false
+      hostPath: /var/run/docker.sock
+      mountPath: /var/run/docker.sock
+
+# ============================================================
+# Services & Ingress
+# ============================================================
+
+services:
+  paperless:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+  postgres:
+    type: ClusterIP
+    port: 5432
+    targetPort: 5432
+  redis:
+    type: ClusterIP
+    port: 6379
+    targetPort: 6379
+  gotenberg:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+  tika:
+    type: ClusterIP
+    port: 9998
+    targetPort: 9998
+  openWebui:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+  paperlessAi:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+  paperlessGpt:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+  dozzle:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  hosts:
+    - host: paperless.wiredquill.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: paperless
+    - host: webui.wiredquill.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: openWebui
+    - host: paperless-ai.wiredquill.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: paperlessAi
+    - host: paperless-gpt.wiredquill.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: paperlessGpt
+    - host: dozzle.wiredquill.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: dozzle
+  tls:
+    - secretName: paperless-tls
+      hosts:
+        - paperless.wiredquill.com
+        - webui.wiredquill.com
+        - paperless-ai.wiredquill.com
+        - paperless-gpt.wiredquill.com
+        - dozzle.wiredquill.com
+
+# ============================================================
+# Network Policies (optional but recommended)
+# ============================================================
+networkPolicies:
+  enabled: false
+  # Define rules for inter-service communication
+  # E.g., paperless can only talk to postgres, redis, gotenberg, tika
+
+# ============================================================
+# Resource Quotas & Limit Ranges (optional)
+# ============================================================
+resourceQuotas:
+  enabled: false
+  cpu: "16"
+  memory: 32Gi
+  pods: "20"
+
+limitRanges:
+  enabled: false
+  defaultCpu: "500m"
+  defaultMemory: "1Gi"
+  defaultRequestCpu: "100m"
+  defaultRequestMemory: "256Mi"

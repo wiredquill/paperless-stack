@@ -1,0 +1,80 @@
+{{- if .Values.paperlessGpt.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paperless-gpt
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-vision
+spec:
+  type: {{ .Values.services.paperlessGpt.type }}
+  ports:
+    - port: {{ .Values.services.paperlessGpt.port }}
+      targetPort: {{ .Values.services.paperlessGpt.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "paperless-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-vision
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless-gpt
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-vision
+spec:
+  replicas: {{ .Values.paperlessGpt.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "paperless-stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ai-vision
+  template:
+    metadata:
+      labels:
+        {{- include "paperless-stack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ai-vision
+    spec:
+      containers:
+        - name: paperless-gpt
+          image: "{{ .Values.paperlessGpt.image.repository }}:{{ .Values.paperlessGpt.image.tag }}"
+          imagePullPolicy: {{ .Values.paperlessGpt.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.paperlessGpt.targetPort }}
+              name: http
+          env:
+            {{- range $key, $value := .Values.paperlessGpt.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.paperlessGpt.resources | nindent 12 }}
+          volumeMounts:
+            - name: paperless-gpt-prompts
+              mountPath: {{ .Values.paperlessGpt.prompts.mountPath }}
+      volumes:
+        - name: paperless-gpt-prompts
+          persistentVolumeClaim:
+            claimName: paperless-gpt-prompts
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paperless-gpt-prompts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperless-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-vision
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.paperlessGpt.prompts.storageClass }}
+  storageClassName: {{ .Values.paperlessGpt.prompts.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.paperlessGpt.prompts.size }}
+{{- end }}
