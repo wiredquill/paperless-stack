@@ -47,22 +47,22 @@ paperless:
   # Persistent volumes
   data:
     enabled: true
-    storageClass: "longhorn"
+    storageClass: "harvester"
     size: 10Gi
     mountPath: /usr/src/paperless/data
   media:
     enabled: true
-    storageClass: "longhorn"
+    storageClass: "harvester"
     size: 50Gi
     mountPath: /usr/src/paperless/media
   export:
     enabled: true
-    storageClass: "longhorn"
+    storageClass: "harvester"
     size: 10Gi
     mountPath: /usr/src/paperless/export
   consume:
     enabled: true
-    storageClass: "longhorn"
+    storageClass: "harvester"
     size: 10Gi
     mountPath: /usr/src/paperless/consume
 
@@ -86,7 +86,7 @@ postgres:
     POSTGRES_PASSWORD: change-me-strong-password
   data:
     enabled: true
-    storageClass: "longhorn"
+    storageClass: "harvester"
     size: 20Gi
     mountPath: /var/lib/postgresql/data
   # Tune for paperless workload
@@ -111,7 +111,7 @@ redis:
       memory: 1Gi
   data:
     enabled: true
-    storageClass: "longhorn"
+    storageClass: "harvester"
     size: 5Gi
     mountPath: /data
   # Optional: password auth for Redis
@@ -186,12 +186,12 @@ ollama:
   volumes:
     ollamaData:
       enabled: true
-      storageClass: "longhorn"
+      storageClass: "harvester"
       size: 50Gi
       mountPath: /root/.ollama
     ollamaModels:
       enabled: true
-      storageClass: "longhorn"
+      storageClass: "harvester"
       size: 100Gi
       mountPath: /ollama-models
 
@@ -212,7 +212,7 @@ openWebui:
       memory: 8Gi
   data:
     enabled: true
-    storageClass: "longhorn"
+    storageClass: "harvester"
     size: 10Gi
     mountPath: /app/backend/data
   ollamaUrl: http://ollama:11434
@@ -234,7 +234,7 @@ paperlessAi:
       memory: 2Gi
   data:
     enabled: true
-    storageClass: "longhorn"
+    storageClass: "harvester"
     size: 10Gi
     mountPath: /app/data
   # Configuration
@@ -265,7 +265,7 @@ paperlessGpt:
       memory: 4Gi
   prompts:
     enabled: true
-    storageClass: "longhorn"
+    storageClass: "harvester"
     size: 5Gi
     mountPath: /app/prompts
   env:
