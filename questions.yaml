@@ -1,0 +1,327 @@
+# ============================================================
+# Rancher/Helm Installation Questions
+# ============================================================
+# Use this file as a checklist or input for automated installers.
+# Each section maps to values.yaml keys. Change defaults or
+# uncomment to override before helm install/upgrade.
+# ============================================================
+
+# ============================================================
+# 1. CREDENTIALS -- CHANGE ALL BEFORE PRODUCTION
+# ============================================================
+credentials:
+  # PostgreSQL superuser / paperless DB user password
+  # Do NOT leave as 'change-me-strong-password'
+  postgresPassword: ""
+  # Paperless admin user password
+  adminPassword: ""
+  # (Optional) Redis password - currently disabled in values.yaml
+  redisPassword: ""
+  # (Optional) API token for paperless-ai / paperless-gpt
+  # Generate after Paperless is running: Profile -> API Tokens
+  apiToken: ""
+
+# ============================================================
+# 2. NETWORKING & DOMAIN
+# ============================================================
+networking:
+  # Base domain for this stack
+  domain: "paperless.wiredquill.com"
+  # Subdomain for Open WebUI
+  openWebuiDomain: "open-webui.wiredquill.com"
+  # Subdomain for Paperless-AI
+  paperlessAiDomain: "paperless-ai.wiredquill.com"
+  # Subdomain for Paperless-GPT
+  paperlessGptDomain: "paperless-gpt.wiredquill.com"
+
+  # LoadBalancer type: ClusterIP | NodePort | LoadBalancer
+  # - ClusterIP: internal only, needs ingress or port-forward
+  # - NodePort: exposed on each node IP at <nodeIP>:<port>
+  # - LoadBalancer: gets an external IP (Harvester/Cilium IPAM)
+  serviceType: "LoadBalancer"
+
+  # If using LoadBalancer, Harvester/Cilium auto-assigns an IP.
+  # You will need to configure DNS records pointing to that IP.
+
+  # Ingress controller: nginx | traefik | None
+  # Set to "nginx" if you have an ingress controller installed.
+  # If loadbalancer.enabled=true, ingress can stay false.
+  ingressEnabled: false
+  ingressClass: "nginx"
+
+# ============================================================
+# 3. STORAGE - HARVESTER CLOUD-INIT STORAGE CLASSES
+# ============================================================
+storage:
+  # Storage class for all PVCs. Harvester uses 'harvester' by default.
+  storageClass: "harvester"
+
+  # Paperless-ngx volumes
+  paperless:
+    data:
+      enabled: true
+      size: "10Gi"
+    media:
+      enabled: true
+      size: "50Gi"
+    export:
+      enabled: true
+      size: "10Gi"
+    consume:
+      enabled: true
+      size: "10Gi"
+
+  # PostgreSQL - grows with documents. 20Gi minimum, expect more.
+  postgres:
+    enabled: true
+    size: "20Gi"
+
+  # Redis - data dir for persistence (disabled by default).
+  redis:
+    enabled: true
+    size: "5Gi"
+
+  # Open WebUI backend data
+  openWebui:
+    enabled: true
+    size: "10Gi"
+
+  # Paperless-AI data (chromaDB, system state)
+  paperlessAi:
+    enabled: true
+    size: "10Gi"
+
+  # Paperless-GPT prompts
+  paperlessGpt:
+    enabled: true
+    size: "5Gi"
+
+  # Ollama model storage - models are large.
+  ollama:
+    data:
+      enabled: true
+      size: "50Gi"
+    models:
+      enabled: true
+      size: "100Gi"
+
+# ============================================================
+# 4. RESOURCE ALLOCATION
+# ============================================================
+resources:
+  # Set per-service. Use '50m' / '50Mi' for constrained clusters.
+  # The values.yaml defaults are listed here; adjust as needed.
+
+  paperless:
+    requests:
+      cpu: "50m"
+      memory: "256Mi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+
+  postgres:
+    requests:
+      cpu: "50m"
+      memory: "256Mi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+
+  redis:
+    requests:
+      cpu: "50m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+
+  gotenberg:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+
+  tika:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+
+  # OLLAMA - requires GPU node. Adjust based on model size.
+  ollama:
+    requests:
+      cpu: "2"
+      memory: "8Gi"
+      nvidia.com/gpu: 1
+    limits:
+      cpu: "8"
+      memory: "32Gi"
+      nvidia.com/gpu: 1
+
+  openWebui:
+    requests:
+      cpu: "50m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "4Gi"
+
+  paperlessAi:
+    requests:
+      cpu: "50m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+
+  paperlessGpt:
+    requests:
+      cpu: "50m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "4Gi"
+
+# ============================================================
+# 5. OPTIONAL SERVICES - toggle on/off
+# ============================================================
+optional:
+  # Ollama: Local LLM inference. Requires GPU node with NVIDIA drivers.
+  # If no GPU, set enabled: false and update MODEL vars in paperlessAi / paperlessGpt.
+  ollama:
+    enabled: true
+    # Model to pull on first run (must be available in Ollama repo)
+    model: "llama3.2:3b"
+
+  # Open WebUI: Web interface for managing LLMs
+  openWebui:
+    enabled: true
+
+  # Paperless-AI: Metadata suggestions, document classification
+  paperlessAi:
+    enabled: true
+
+  # Paperless-GPT: Vision OCR, auto-tagging
+  paperlessGpt:
+    enabled: true
+
+  # Dozzle: Live log viewer. Requires Docker socket (not native on K8s).
+  dozzle:
+    enabled: false
+
+# ============================================================
+# 6. OCR & LANGUAGE
+# ============================================================
+ocr:
+  # Languages for OCR (tesseract). Add more as needed: eng, deu, fra, etc.
+  languages:
+    - "eng"
+  # Whether to process subfolders recursively during consumption
+  recursive: true
+  # Whether to use subfolder names as tags
+  subfoldersAsTags: false
+
+# ============================================================
+# 7. EMAIL / MAIL PROCESSING (paperless-mail)
+# ============================================================
+mail:
+  # Paperless can auto-process emails. Configure below.
+  enabled: false
+  # IMAP server settings
+  imapServer: ""
+  imapPort: 993
+  imapUser: ""
+  imapPassword: ""
+  imapFolder: "INBOX"
+  imapArchiveFolder: "Archived"
+  # Actions: archive, tag, delete, etc.
+  imapAction: "tag"
+  imapTags: []
+
+# ============================================================
+# 8. SECURITY
+# ============================================================
+security:
+  # Enable network policies between services
+  networkPolicies: false
+
+  # Enable resource quotas on the namespace
+  resourceQuotas: false
+  quota:
+    cpu: "16"
+    memory: "32Gi"
+    pods: "20"
+
+  # TLS / HTTPS
+  # If using a reverse proxy (Traefik, Nginx ingress, etc.), enable TLS there.
+  # The nginx loadbalancer template does NOT include TLS termination.
+  tlsEnabled: false
+  tlsSecretName: ""
+
+# ============================================================
+# 9. KUBERNETES / CLUSTER SETTINGS
+# ============================================================
+cluster:
+  # Namespace for the stack
+  namespace: "paperless"
+
+  # Namespace auto-created if it doesn't exist
+  createNamespace: true
+
+  # Labels to apply to all resources
+  labels: {}
+
+  # Tolerations for nodes (e.g., GPU taints)
+  tolerations: []
+
+  # Node selector for general services (non-GPU)
+  nodeSelector: {}
+
+# ============================================================
+# 10. DATA BACKUP & RESTORE
+# ============================================================
+backup:
+  # Note: Rancher Fleet does not include backup by default.
+  # For persistent data:
+  #   - Use Harvester volume snapshots (Rancher UI -> Storage -> Snapshots)
+  #   - Or deploy Velero for cluster-level backups
+  #
+  # Important PVCs to back up:
+  #   paperless-data      (documents, thumbs, export)
+  #   paperless-media     (uploaded files)
+  #   paperless-consume   (drop folder)
+  #   postgres-pvc        (PostgreSQL data dir)
+  #   ollama-models-pvc   (downloaded LLM models - expensive to re-download)
+  #
+  # Paperless also has built-in export: Settings -> Export
+  # This creates a .tar.gz you can import on a fresh install.
+
+# ============================================================
+# QUICK REFERENCE - values.yaml key mappings
+# ============================================================
+# The questions above map to these values.yaml paths:
+#
+# credentials.postgresPassword    -> paperless.env.PAPERLESS_DBPASS
+#                                -> postgres.env.POSTGRES_PASSWORD
+# credentials.adminPassword       -> paperless.env.PAPERLESS_ADMIN_PASSWORD
+# credentials.redisPassword       -> redis.auth.password
+# credentials.apiToken            -> paperlessAi.env.PAPERLESS_API_TOKEN
+#                                -> paperlessGpt.env.PAPERLESS_API_TOKEN
+# networking.domain               -> global.domain
+# networking.serviceType          -> services.*.type
+# storage.storageClass            -> *.data.storageClass
+# storage.paperless.media.size    -> paperless.media.size
+# resources.paperless.requests    -> paperless.resources.requests
+# resources.ollama.requests       -> ollama.resources.requests
+# optional.ollama.enabled         -> ollama.enabled
+# optional.openWebui.enabled      -> openWebui.enabled
+# optional.paperlessAi.enabled    -> paperlessAi.enabled
+# optional.paperlessGpt.enabled   -> paperlessGpt.enabled
+# optional.dozzle.enabled         -> dozzle.enabled
+# ocr.languages                   -> paperless.env.PAPERLESS_OCR_LANGUAGES
+# cluster.namespace               -> global.namespace
