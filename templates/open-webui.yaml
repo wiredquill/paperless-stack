@@ -9,10 +9,11 @@ metadata:
     {{- include "paperless-stack.labels" . | nindent 4 }}
     app.kubernetes.io/component: webui
 spec:
-  type: {{ .Values.services.openWebui.type }}
+  {{- $svc := index $.Values.services "open-webui" }}
+  type: {{ $svc.type }}
   ports:
-    - port: {{ .Values.services.openWebui.port }}
-      targetPort: {{ .Values.services.openWebui.targetPort }}
+    - port: {{ $svc.port }}
+      targetPort: {{ $svc.targetPort }}
       protocol: TCP
       name: http
   selector:
@@ -44,7 +45,7 @@ spec:
           image: "{{ .Values.openWebui.image.repository }}:{{ .Values.openWebui.image.tag }}"
           imagePullPolicy: {{ .Values.openWebui.image.pullPolicy }}
           ports:
-            - containerPort: {{ .Values.services.openWebui.targetPort }}
+            - containerPort: {{ $svc.targetPort }}
               name: http
           env:
             - name: OLLAMA_BASE_URL

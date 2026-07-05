@@ -9,10 +9,11 @@ metadata:
     {{- include "paperless-stack.labels" . | nindent 4 }}
     app.kubernetes.io/component: ai
 spec:
-  type: {{ .Values.services.paperlessAi.type }}
+  {{- $svc := index $.Values.services "paperless-ai" }}
+  type: {{ $svc.type }}
   ports:
-    - port: {{ .Values.services.paperlessAi.port }}
-      targetPort: {{ .Values.services.paperlessAi.targetPort }}
+    - port: {{ $svc.port }}
+      targetPort: {{ $svc.targetPort }}
       protocol: TCP
       name: http
   selector:
@@ -44,7 +45,7 @@ spec:
           image: "{{ .Values.paperlessAi.image.repository }}:{{ .Values.paperlessAi.image.tag }}"
           imagePullPolicy: {{ .Values.paperlessAi.image.pullPolicy }}
           ports:
-            - containerPort: {{ .Values.services.paperlessAi.targetPort }}
+            - containerPort: {{ $svc.targetPort }}
               name: http
           env:
             {{- range $key, $value := .Values.paperlessAi.env }}

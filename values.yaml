@@ -75,8 +75,8 @@ postgres:
     pullPolicy: IfNotPresent
   resources:
     requests:
-      cpu: 500m
-      memory: 2Gi
+      cpu: 100m
+      memory: 512Mi
     limits:
       cpu: "2"
       memory: 8Gi
@@ -88,7 +88,7 @@ postgres:
     enabled: true
     storageClass: "harvester"
     size: 20Gi
-    mountPath: /var/lib/postgresql/data
+    mountPath: /var/lib/postgresql
   # Tune for paperless workload
   primary:
     initdb:
@@ -272,6 +272,7 @@ paperlessGpt:
     # Paperless API token
     PAPERLESS_API_TOKEN: ""
     # Paperless base URL
+    PAPERLESS_BASE_URL: http://paperless:8000
     PAPERLESS_SERVER_URL: http://paperless:8000
     # Ollama URL
     OLLAMA_BASE_URL: http://ollama:11434
@@ -328,15 +329,15 @@ services:
     type: ClusterIP
     port: 9998
     targetPort: 9998
-  openWebui:
+  open-webui:
     type: ClusterIP
     port: 8080
     targetPort: 8080
-  paperlessAi:
+  paperless-ai:
     type: ClusterIP
     port: 3000
     targetPort: 3000
-  paperlessGpt:
+  paperless-gpt:
     type: ClusterIP
     port: 8080
     targetPort: 8080
@@ -346,46 +347,31 @@ services:
     targetPort: 8080
 
 ingress:
+  enabled: false
+
+# ============================================================
+# LoadBalancer (nginx reverse proxy on single IP)
+# ============================================================
+loadbalancer:
   enabled: true
-  className: nginx
-  annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-  hosts:
-    - host: paperless.wiredquill.com
-      paths:
-        - path: /
-          pathType: Prefix
-          service: paperless
-    - host: webui.wiredquill.com
-      paths:
-        - path: /
-          pathType: Prefix
-          service: openWebui
-    - host: paperless-ai.wiredquill.com
-      paths:
-        - path: /
-          pathType: Prefix
-          service: paperlessAi
-    - host: paperless-gpt.wiredquill.com
-      paths:
-        - path: /
-          pathType: Prefix
-          service: paperlessGpt
-    - host: dozzle.wiredquill.com
-      paths:
-        - path: /
-          pathType: Prefix
-          service: dozzle
-  tls:
-    - secretName: paperless-tls
-      hosts:
-        - paperless.wiredquill.com
-        - webui.wiredquill.com
-        - paperless-ai.wiredquill.com
-        - paperless-gpt.wiredquill.com
-        - dozzle.wiredquill.com
+  replicaCount: 1
+  image:
+    repository: nginx
+    tag: 1.27-alpine
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  upstreams:
+    paperless: "paperless:8000"
+    openwebui: "open-webui:8080"
+    paperlessai: "paperless-ai:3000"
+    paperlessgpt: "paperless-gpt:8080"
+    dozzle: "dozzle:8080"
 
 # ============================================================
 # Network Policies (optional but recommended)
