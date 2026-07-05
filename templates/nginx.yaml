@@ -53,11 +53,6 @@ data:
         server {{ .Values.loadbalancer.upstreams.paperlessgpt }};
       }
 
-      # Dozzle
-      upstream dozzle {
-        server {{ .Values.loadbalancer.upstreams.dozzle }};
-      }
-
       # Default server - catch all unknown hosts
       server {
         listen 80 default_server;

@@ -205,11 +205,11 @@ openWebui:
     pullPolicy: IfNotPresent
   resources:
     requests:
-      cpu: 500m
-      memory: 2Gi
+      cpu: 50m
+      memory: 256Mi
     limits:
-      cpu: "2"
-      memory: 8Gi
+      cpu: "1"
+      memory: 4Gi
   data:
     enabled: true
     storageClass: "harvester"
@@ -227,8 +227,8 @@ paperlessAi:
     pullPolicy: IfNotPresent
   resources:
     requests:
-      cpu: 200m
-      memory: 512Mi
+      cpu: 50m
+      memory: 256Mi
     limits:
       cpu: "1"
       memory: 2Gi
@@ -247,6 +247,8 @@ paperlessAi:
     OLLAMA_BASE_URL: http://ollama:11434
     # Model to use (must match downloaded model in Ollama)
     MODEL: llama3.2:3b
+    # Bind to all interfaces (fixes EACCES on cluster IP)
+    BIND_ADDRESS: "0.0.0.0"
 
 ## Paperless-GPT (vision OCR)
 paperlessGpt:
@@ -258,10 +260,10 @@ paperlessGpt:
     pullPolicy: IfNotPresent
   resources:
     requests:
-      cpu: 200m
-      memory: 512Mi
+      cpu: 50m
+      memory: 256Mi
     limits:
-      cpu: "2"
+      cpu: "1"
       memory: 4Gi
   prompts:
     enabled: true
@@ -269,7 +271,7 @@ paperlessGpt:
     size: 5Gi
     mountPath: /app/prompts
   env:
-    # Paperless API token
+    # Paperless API token (set this to your paperless token)
     PAPERLESS_API_TOKEN: ""
     # Paperless base URL
     PAPERLESS_BASE_URL: http://paperless:8000
