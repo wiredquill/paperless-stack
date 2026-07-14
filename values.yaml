@@ -47,22 +47,22 @@ paperless:
   # Persistent volumes
   data:
     enabled: true
-    storageClass: "harvester"
+    storageClass: "local-path"
     size: 10Gi
     mountPath: /usr/src/paperless/data
   media:
     enabled: true
-    storageClass: "harvester"
+    storageClass: "local-path"
     size: 50Gi
     mountPath: /usr/src/paperless/media
   export:
     enabled: true
-    storageClass: "harvester"
+    storageClass: "local-path"
     size: 10Gi
     mountPath: /usr/src/paperless/export
   consume:
     enabled: true
-    storageClass: "harvester"
+    storageClass: "local-path"
     size: 10Gi
     mountPath: /usr/src/paperless/consume
 
@@ -86,7 +86,7 @@ postgres:
     POSTGRES_PASSWORD: change-me-strong-password
   data:
     enabled: true
-    storageClass: "harvester"
+    storageClass: "local-path"
     size: 20Gi
     mountPath: /var/lib/postgresql
   # Tune for paperless workload
@@ -111,7 +111,7 @@ redis:
       memory: 1Gi
   data:
     enabled: true
-    storageClass: "harvester"
+    storageClass: "local-path"
     size: 5Gi
     mountPath: /data
   # Optional: password auth for Redis
@@ -169,29 +169,23 @@ ollama:
     pullPolicy: IfNotPresent
   resources:
     requests:
-      cpu: 2
+      cpu: "2"
       memory: 8Gi
-      "nvidia.com/gpu": 1
     limits:
-      cpu: "8"
-      memory: 32Gi
-      "nvidia.com/gpu": 1
-  # GPU node requirements
-  nodeSelector:
-    nvidia.com/gpu.present: "true"
-  tolerations:
-    - key: "nvidia.com/gpu"
-      operator: "Exists"
-      effect: "NoSchedule"
+      cpu: "4"
+      memory: 16Gi
+  # Remove GPU requirements for non-GPU nodes
+  nodeSelector: {}
+  tolerations: []
   volumes:
     ollamaData:
       enabled: true
-      storageClass: "harvester"
+      storageClass: "local-path"
       size: 50Gi
       mountPath: /root/.ollama
     ollamaModels:
       enabled: true
-      storageClass: "harvester"
+      storageClass: "local-path"
       size: 100Gi
       mountPath: /ollama-models
 
@@ -212,7 +206,7 @@ openWebui:
       memory: 4Gi
   data:
     enabled: true
-    storageClass: "harvester"
+    storageClass: "local-path"
     size: 10Gi
     mountPath: /app/backend/data
   ollamaUrl: http://ollama:11434
@@ -234,13 +228,13 @@ paperlessAi:
       memory: 2Gi
   data:
     enabled: true
-    storageClass: "harvester"
+    storageClass: "local-path"
     size: 10Gi
     mountPath: /app/data
   # Configuration
   env:
     # Paperless API token (get from Paperless Profile → API Tokens)
-    PAPERLESS_API_TOKEN: ""
+    PAPERLESS_API_TOKEN: "local-dev-token"
     # Paperless base URL
     PAPERLESS_SERVER_URL: http://paperless:8000
     # Ollama URL
@@ -249,6 +243,7 @@ paperlessAi:
     MODEL: llama3.2:3b
     # Bind to all interfaces (fixes EACCES on cluster IP)
     BIND_ADDRESS: "0.0.0.0"
+    HOST: "0.0.0.0"
 
 ## Paperless-GPT (vision OCR)
 paperlessGpt:
@@ -267,12 +262,12 @@ paperlessGpt:
       memory: 4Gi
   prompts:
     enabled: true
-    storageClass: "harvester"
+    storageClass: "local-path"
     size: 5Gi
     mountPath: /app/prompts
   env:
     # Paperless API token (set this to your paperless token)
-    PAPERLESS_API_TOKEN: ""
+    PAPERLESS_API_TOKEN: "local-dev-token"
     # Paperless base URL
     PAPERLESS_BASE_URL: http://paperless:8000
     PAPERLESS_SERVER_URL: http://paperless:8000
@@ -280,6 +275,8 @@ paperlessGpt:
     OLLAMA_BASE_URL: http://ollama:11434
     # Vision model (e.g., minicpm-v:8b)
     MODEL: minicpm-v:8b
+    LLM_PROVIDER: ollama
+    LLM_MODEL: llama3.2
 
 # ============================================================
 # Optional: Dozzle (log viewer)
